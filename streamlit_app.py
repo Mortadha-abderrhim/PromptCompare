@@ -34,10 +34,11 @@ goals = {
 
 
 with open("LEGACY_PROMPT.md", "r", encoding="utf-8") as file:
-    legacy = file.read()
+    LEGACY = file.read()
 
 with open("NEW_PROMPT.md","r", encoding="utf-8") as file:
-    new = file.read()
+    NEW = file.read()
+
 
 LOG_CSV = "logs.csv"
 
@@ -131,7 +132,7 @@ def append_log_row(row: dict):
         writer.writerow(row)
 
 
-def run_pipelines(language: str, writing_type: str, topic: str, essay: str, prompt: str) -> dict:
+def run_pipelines(legacy,new, language: str, writing_type: str, topic: str, essay: str, prompt: str) -> dict:
     formatted_input = format_input(topic, essay, prompt)
     history_for_model = get_model_history()
 
@@ -442,6 +443,8 @@ with right_col:
             try:
                 with st.spinner("Preparing tutor replies..."):
                     st.session_state["pending_result"] = run_pipelines(
+                        legacy=LEGACY,
+                        new = NEW,
                         language=language,
                         writing_type=writing_type,
                         topic=topic,
