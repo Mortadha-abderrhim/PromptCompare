@@ -3,8 +3,34 @@ import os
 import requests
 import csv
 import random
+import io
+import csv
+from googleapiclient.http import MediaIoBaseDownload, MediaIoBaseUpload
+
 API_KEY = os.environ.get("API_KEY")
 import json
+
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+import streamlit as st
+
+def get_drive_service():
+    """
+    Authenticates with Google Cloud using Streamlit Secrets 
+    and returns an authorized API client session.
+    """
+    # 1. Grab the raw credentials dictionary from your Streamlit App secrets
+    credentials_info = st.secrets["gcp_service_account"]
+    
+    # 2. Convert that dictionary into an official Google OAuth2 Credentials object
+    # The 'scope' tells Google exactly what permissions your app is asking for
+    creds = service_account.Credentials.from_service_account_info(
+        credentials_info, 
+        scopes=["https://www.googleapis.com/auth/drive.file"]
+    )
+    
+    # 3. Construct and return the 'service' client specifically for the Drive API (version 3)
+    return build('drive', 'v3', credentials=creds)
 
 st.set_page_config(layout="wide", page_title="Compare LLM Pipelines")
 
@@ -110,26 +136,64 @@ def safe_rerun():
 
 
 def append_log_row(row: dict):
-    file_exists = os.path.isfile(LOG_CSV)
-    with open(LOG_CSV, "a", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(
-            f,
-            fieldnames=[
-                "topic",
-                "essay",
-                "history",
-                "prompt",
-                "thinking1",
-                "thinking2",
-                "output1",
-                "output2",
-                "choice",
-            ],
-            extrasaction="ignore",
-        )
-        if not file_exists:
-            writer.writeheader()
+    """
+    Appends a row to a CSV file hosted on Google Drive.
+    'service' is your authenticated Google Drive API client.
+    """
+    fieldnames = [
+        "topic", "essay", "history", "prompt", 
+        "thinking1", "thinking2", "output1", "output2", "choice"
+    ]
+    LOG_FILE_ID = "1n7Mwe2_qghkPvZ2ElQ6J2p0_dxzf92IE"
+    
+    # --- STEP 1: Download existing content from Google Drive ---
+    try:
+        drive_service = get_drive_service()
+        request = service.files().get_media(fileId=LOG_FILE_ID)
+        downloaded_bytes = io.BytesIO()
+        downloader = MediaIoBaseDownload(downloaded_bytes, request)
+        
+        done = False
+        while not done:
+            status, done = downloader.next_chunk()
+            
+        # Move pointer to the beginning of the stream to read it
+        downloaded_bytes.seek(0)
+        # Convert bytes to string text format
+        existing_text = downloaded_bytes.read().decode('utf-8')
+    
+    except Exception as e:
+        # If the file doesn't exist yet or can't be fetched, start fresh
+        existing_text = ""
+
+    # --- STEP 2: Append the new row in memory ---
+    # We use a string buffer to rebuild/append the CSV data safely
+    output_buffer = io.StringIO()
+    writer = csv.DictWriter(output_buffer, fieldnames=fieldnames, extrasaction="ignore")
+    
+    if not existing_text.strip():
+        # File is empty or brand new: write the header first
+        writer.writeheader()
         writer.writerow(row)
+        final_csv_text = output_buffer.getvalue()
+    else:
+        # File already exists: keep original text and append the new row
+        writer.writerow(row)
+        new_row_text = output_buffer.getvalue()
+        # Clean up line endings to ensure perfect concatenation
+        if not existing_text.endswith('\n'):
+            existing_text += '\n'
+        final_csv_text = existing_text + new_row_text
+
+    # --- STEP 3: Upload the updated CSV back to Google Drive ---
+    # Convert string back into raw bytes for the upload payload
+    final_bytes = io.BytesIO(final_csv_text.encode('utf-8'))
+    media = MediaIoBaseUpload(final_bytes, mimetype='text/csv', resumable=True)
+    
+    service.files().update(
+        fileId=LOG_FILE_ID,
+        media_body=media
+    ).execute()
 
 
 def run_pipelines(legacy,new, language: str, writing_type: str, topic: str, essay: str, prompt: str) -> dict:
