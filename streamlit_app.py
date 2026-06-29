@@ -59,7 +59,7 @@ def response(system,history,formatted_input):
 def format_input(topic: str, essay: str, prompt: str) -> str:
     return f"<topic>{topic}</topic>\n<essay>{essay}</essay>\n<prompt>{prompt}</prompt>"
 
-def format_system_prompt(language,writing_type):
+def format_system_prompt(legacy, new, language,writing_type):
     legacy = legacy.format(language=language)
     new = new.format(language=language,type = writing_type, structure = goals[writing_type])
     return legacy,new
@@ -135,7 +135,7 @@ def run_pipelines(language: str, writing_type: str, topic: str, essay: str, prom
     formatted_input = format_input(topic, essay, prompt)
     history_for_model = get_model_history()
 
-    legacy,new = format_system_prompt(language,writing_type)
+    legacy,new = format_system_prompt(legacy,new,language,writing_type)
     # Pipeline 1: direct answer with hidden thinking/output tags.
     resp1 = response(legacy, history_for_model, formatted_input)
     think1, output1 = extract_output(resp1)
