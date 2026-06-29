@@ -361,7 +361,6 @@ with right_col:
         unsafe_allow_html=True,
     )
 
-    st.markdown('<div class="chat-frame">', unsafe_allow_html=True)
 
     if not st.session_state["chat_log"] and not st.session_state["pending_result"]:
         st.markdown(
