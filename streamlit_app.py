@@ -61,8 +61,8 @@ def format_input(topic: str, essay: str, prompt: str) -> str:
     return f"<topic>{topic}</topic>\n<essay>{essay}</essay>\n<prompt>{prompt}</prompt>"
 
 def format_system_prompt(legacy, new, language,writing_type):
-    legacy = legacy.format(language=language)
-    new = new.format(language=language,type = writing_type, structure = goals[writing_type])
+    legacy = legacy.repalce("{language}",language)
+    new = new.repalce("{language}",language).repalce("{type}",writing_type).repalce("{structure}",goals[writing_type])
     return legacy,new
 
 def extract_output(response):
