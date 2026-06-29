@@ -82,12 +82,12 @@ Here are some principle to help you choose a micro-goal:
 
 
 Think about these pedagogical choices and output them as a JSON along with a brief explanation in the following format:
-{
+\{
   "type_of_response":  ...,
   "level_of_response": [...],
   "micro_goal": ...,
   "explanation": ...
-}
+\}
 This output will be shown in between <think> </think> in the output structure
 
 STEP2:
